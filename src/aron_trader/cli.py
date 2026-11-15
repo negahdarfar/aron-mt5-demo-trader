@@ -25,6 +25,8 @@ def main() -> None:
                         help="Simplified total round-trip cost in price units")
     parser.add_argument("--slippage", type=float, default=0.0,
                         help="Simplified total round-trip cost in price units")
+    parser.add_argument("--trade-start", help="First eligible trade date/time (UTC)")
+    parser.add_argument("--trade-end", help="Exclusive end date/time (UTC)")
     args = parser.parse_args()
     result = run_backtest(
         load_ohlcv_csv(args.csv),
@@ -32,6 +34,8 @@ def main() -> None:
         strategy=args.strategy,
         spread=args.spread,
         slippage=args.slippage,
+        trade_start=args.trade_start,
+        trade_end=args.trade_end,
     )
     result.pop("trade_log", None)
     print(json.dumps({"symbol": args.symbol, **result}, indent=2, default=str))
