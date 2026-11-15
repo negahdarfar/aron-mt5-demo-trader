@@ -50,13 +50,15 @@ def test_smc_features_are_causal_and_have_expected_columns():
     result = add_smc_features(data, swing_left=2, swing_right=2)
     assert {"bullish_bos", "bearish_bos", "bullish_fvg", "bearish_fvg",
             "bullish_ob_low", "bearish_ob_high", "smc_signal"}.issubset(result.columns)
-    # A swing at source index 5 cannot be confirmed before index 7.
+    # A swing at source index 3 is confirmed after two right-side candles, at index 5.
     pivot_data = sample_data(12)
     pivot_data["high"] = [1, 2, 3, 5, 3, 2, 1, 2, 3, 2, 1, 2]
     pivot_data["low"] = [x - 0.01 for x in pivot_data["high"]]
+    pivot_data["open"] = [x - 0.005 for x in pivot_data["high"]]
+    pivot_data["close"] = pivot_data["open"]
     pivot_result = add_smc_features(pivot_data, swing_left=2, swing_right=2)
-    assert pd.isna(pivot_result.loc[5, "confirmed_swing_high"])
-    assert pivot_result.loc[6, "confirmed_swing_high"] == 5
+    assert pd.isna(pivot_result.loc[4, "confirmed_swing_high"])
+    assert pivot_result.loc[5, "confirmed_swing_high"] == 5
 
 
 def test_backtest_accepts_smc_strategy():
