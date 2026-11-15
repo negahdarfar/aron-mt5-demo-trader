@@ -43,6 +43,15 @@ Required columns: `timestamp,open,high,low,close,volume`. Timestamps should be c
 3. Paper trading / signal monitoring.
 4. Only after successful validation, design a strictly demo-only MT5 bridge for a Windows terminal, with a hard block against real accounts.
 
+## Run a historical backtest from Android
+
+1. Open this repository on GitHub and tap **Actions**.
+2. Select **ARON Historical Backtest**.
+3. Tap **Run workflow** and choose the symbol, timeframe, date range and strategy.
+4. After the run finishes, open its **Artifacts** section and download the ZIP containing the source CSV and JSON report.
+
+The workflow downloads public historical candles using the open-source `dukascopy-node` tool. It currently offers EURUSD, GBPUSD, USDJPY and XAUUSD on M15, H1, H4 and D1, with a maximum 730-day range per run. Data is a third-party historical feed, not a broker-certified Aron Groups export; spreads, contract conversion, commissions and execution differences must be calibrated before interpreting results.
+
 ## Android limitation
 An Android phone can view/manage an MT5 account, but it cannot host an MT5 Expert Advisor. GitHub Actions can run tests and offline backtests; it is not a persistent broker-connected trading terminal.
 
