@@ -1,5 +1,5 @@
 name: ARON Historical Backtest
-# Research matrix: October 2026 evaluation; September is warm-up. Includes the Wizards ensemble.
+# Research matrix: October 2026 evaluation; September is warm-up. Includes regime-switching Wizards ensemble.
 
 on:
   push:
