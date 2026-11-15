@@ -36,7 +36,8 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
                  risk_fraction: float = 0.005, spread: float = 0.0,
                  slippage: float = 0.0, reward_risk: float = 2.0,
                  strategy: str = "ema_rsi", max_daily_loss: float = 0.02,
-                 max_drawdown_limit: float = 0.06) -> dict:
+                 max_drawdown_limit: float = 0.06,
+                 value_per_price_unit_per_lot: float = 1.0) -> dict:
     """Run a price-unit research simulation; costs are total round-trip price units.
 
     The instrument's contract size, account-currency conversion, margin, swap,
@@ -46,6 +47,9 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
         raise ValueError("Invalid balance or risk fraction")
     if spread < 0 or slippage < 0 or reward_risk < 1:
         raise ValueError("Invalid trading costs or reward/risk")
+    if (not pd.notna(value_per_price_unit_per_lot)
+            or value_per_price_unit_per_lot <= 0):
+        raise ValueError("value_per_price_unit_per_lot must be positive")
     if not 0 < max_daily_loss <= 0.10 or not 0 < max_drawdown_limit <= 0.50:
         raise ValueError("Invalid daily loss or drawdown limit")
     if strategy not in {"ema_rsi", "smc"}:
@@ -82,13 +86,14 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
             exit_price, exit_reason = _bar_exit(position, bar)
             if exit_price is not None:
                 direction = 1 if position["side"] == "BUY" else -1
-                pnl = direction * (exit_price - position["entry"]) * position["units"]
-                pnl -= round_trip_cost * position["units"]
+                pnl = (direction * (exit_price - position["entry"])
+                       * position["lots"] * value_per_price_unit_per_lot)
+                pnl -= round_trip_cost * position["lots"] * value_per_price_unit_per_lot
                 balance += pnl
                 trades.append({
                     "side": position["side"], "pnl": pnl,
                     "entry": position["entry"], "exit": exit_price,
-                    "exit_reason": exit_reason, "units": position["units"],
+                    "exit_reason": exit_reason, "lots": position["lots"],
                 })
                 position = None
 
@@ -97,8 +102,9 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
         unrealized = 0.0
         if position is not None:
             direction = 1 if position["side"] == "BUY" else -1
-            unrealized = direction * (float(bar["close"]) - position["entry"]) * position["units"]
-            unrealized -= round_trip_cost * position["units"]
+            unrealized = (direction * (float(bar["close"]) - position["entry"])
+                          * position["lots"] * value_per_price_unit_per_lot)
+            unrealized -= round_trip_cost * position["lots"] * value_per_price_unit_per_lot
         equity = balance + unrealized
         last_equity = equity
         equity_peak = max(equity_peak, equity)
@@ -116,15 +122,16 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
         if position is not None and (trading_halted_daily or trading_halted_drawdown):
             direction = 1 if position["side"] == "BUY" else -1
             exit_price = float(bar["close"])
-            pnl = direction * (exit_price - position["entry"]) * position["units"]
-            pnl -= round_trip_cost * position["units"]
+            pnl = (direction * (exit_price - position["entry"])
+                   * position["lots"] * value_per_price_unit_per_lot)
+            pnl -= round_trip_cost * position["lots"] * value_per_price_unit_per_lot
             balance += pnl
             trades.append({
                 "side": position["side"], "pnl": pnl,
                 "entry": position["entry"], "exit": exit_price,
                 "exit_reason": ("max_drawdown_halt" if trading_halted_drawdown
                                 else "daily_loss_halt"),
-                "units": position["units"],
+                "lots": position["lots"],
             })
             position = None
             last_equity = balance
@@ -137,19 +144,20 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
                 entry = float(bar["open"])
                 stop_distance = float(atr)
                 risk_cash = equity * risk_fraction
-                units = risk_cash / stop_distance
+                lots = risk_cash / (stop_distance * value_per_price_unit_per_lot)
                 direction = 1 if signal == "BUY" else -1
                 stop = entry - direction * stop_distance
                 target = entry + direction * stop_distance * reward_risk
                 position = {"side": signal, "entry": entry, "stop": stop,
-                            "target": target, "units": units}
+                            "target": target, "lots": lots}
 
     final_close = float(data.iloc[-1]["close"])
     unrealized_pnl = 0.0
     if position is not None:
         direction = 1 if position["side"] == "BUY" else -1
-        unrealized_pnl = direction * (final_close - position["entry"]) * position["units"]
-        unrealized_pnl -= round_trip_cost * position["units"]
+        unrealized_pnl = (direction * (final_close - position["entry"])
+                          * position["lots"] * value_per_price_unit_per_lot)
+        unrealized_pnl -= round_trip_cost * position["lots"] * value_per_price_unit_per_lot
     ending_equity = balance + unrealized_pnl
     equity_peak = max(equity_peak, ending_equity)
     if equity_peak > 0:
@@ -173,6 +181,7 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
     return {
         "strategy": strategy,
         "starting_balance": starting_balance,
+        "value_per_price_unit_per_lot": value_per_price_unit_per_lot,
         "ending_balance": balance,
         "ending_equity": ending_equity,
         "unrealized_pnl": unrealized_pnl,
@@ -195,7 +204,9 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
         "note": (
             "Offline research only. Ending equity marks any open position to the final close; "
             "open trades are not counted as closed wins/losses. Spread+slippage are treated "
-            "as total round-trip price-unit costs. Contract conversion, commission, swap, "
-            "margin and broker execution rules are not modeled."
+            "as total round-trip price-unit costs. Set value_per_price_unit_per_lot "
+            "from verified symbol/account-currency specifications; the default 1.0 is "
+            "a placeholder, not an Aron Groups calibration. Commission, swap, margin, "
+            "lot steps and broker execution rules are not modeled."
         ),
     }
