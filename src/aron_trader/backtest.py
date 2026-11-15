@@ -37,7 +37,9 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
                  slippage: float = 0.0, reward_risk: float = 2.0,
                  strategy: str = "ema_rsi", max_daily_loss: float = 0.02,
                  max_drawdown_limit: float = 0.06,
-                 value_per_price_unit_per_lot: float = 1.0) -> dict:
+                 value_per_price_unit_per_lot: float = 1.0,
+                 trade_start: str | None = None,
+                 trade_end: str | None = None) -> dict:
     """Run a price-unit research simulation; costs are total round-trip price units.
 
     The instrument's contract size, account-currency conversion, margin, swap,
@@ -59,6 +61,17 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
     if strategy == "smc":
         data = add_smc_features(data)
 
+    # Indicators are calculated on all available history (warm-up), but only
+    # candles inside [trade_start, trade_end) are eligible for positions.
+    start_ts = pd.Timestamp(trade_start, tz="UTC") if trade_start else data["timestamp"].iloc[0]
+    end_ts = pd.Timestamp(trade_end, tz="UTC") if trade_end else data["timestamp"].iloc[-1] + pd.Timedelta(nanoseconds=1)
+    if end_ts <= start_ts:
+        raise ValueError("trade_end must be later than trade_start")
+    start_idx = int(data["timestamp"].searchsorted(start_ts, side="left"))
+    end_idx = int(data["timestamp"].searchsorted(end_ts, side="left"))
+    if end_idx - start_idx < 2:
+        raise ValueError("Not enough candles inside the requested trading window")
+
     balance = float(starting_balance)
     equity_peak = balance
     max_drawdown = 0.0
@@ -73,7 +86,7 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
     round_trip_cost = float(spread + slippage)
 
     # Signals use the previous completed candle; fills use this candle's open.
-    for i in range(1, len(data)):
+    for i in range(max(1, start_idx), end_idx):
         bar = data.iloc[i]
         prev = data.iloc[i - 1]
         current_day = pd.Timestamp(bar["timestamp"]).date()
@@ -151,7 +164,7 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
                 position = {"side": signal, "entry": entry, "stop": stop,
                             "target": target, "lots": lots}
 
-    final_close = float(data.iloc[-1]["close"])
+    final_close = float(data.iloc[end_idx - 1]["close"])
     unrealized_pnl = 0.0
     if position is not None:
         direction = 1 if position["side"] == "BUY" else -1
@@ -180,6 +193,8 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
             loss_streak = 0
     return {
         "strategy": strategy,
+        "trade_start": str(start_ts),
+        "trade_end_exclusive": str(end_ts),
         "starting_balance": starting_balance,
         "value_per_price_unit_per_lot": value_per_price_unit_per_lot,
         "ending_balance": balance,
