@@ -42,6 +42,10 @@ def test_backtest_returns_metrics_without_execution():
     assert result["starting_balance"] == 1000
     assert result["ending_balance"] > 0
     assert "trade_log" in result
+    assert "profit_factor" in result
+    assert "expectancy_per_trade" in result
+    assert "max_consecutive_losses" in result
+    assert "ending_equity" in result
 
 
 def test_smc_features_are_causal_and_have_expected_columns():
