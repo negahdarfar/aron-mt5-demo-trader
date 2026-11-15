@@ -1,6 +1,10 @@
 name: ARON Historical Backtest
 
 on:
+  push:
+    paths:
+      - ".github/workflows/historical-backtest.yml"
+      - "README.md"
   workflow_dispatch:
     inputs:
       symbol:
