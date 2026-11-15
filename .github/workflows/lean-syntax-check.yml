@@ -18,9 +18,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Compile LEAN algorithm source
-        run: python -m py_compile lean-research/main.py
-      - name: Verify strategy parity and signal-only safety contract
+      - name: Compile LEAN algorithm and rule modules
+        run: python -m py_compile lean-research/main.py lean-research/strategy_rules.py lean-research/test_strategy_rules.py
+      - name: Run deterministic strategy and causality tests
+        working-directory: lean-research
+        run: python -m unittest -v test_strategy_rules.py
+      - name: Verify signal-only safety contract
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -29,19 +32,9 @@ jobs:
           found = [token for token in forbidden if token in source]
           if found:
               raise SystemExit(f"Unexpected order submission methods: {found}")
-          required = (
-              'self.AddForex("EURUSD"',
-              "AverageTrueRange(14, MovingAverageType.Wilders)",
-              "ExponentialMovingAverage(20)",
-              "ExponentialMovingAverage(50)",
-              "AverageDirectionalIndex(14)",
-              "len(self.prior_highs) == 20",
-              "len(self.prior_atrs) == 50",
-              "atr_baseline * 1.10",
-              "bar.EndTime.hour in (7, 15)",
-          )
+          required = ("self.AddForex(", "TradeBarConsolidator", "atr_breakout_direction(", "mtf_context_agrees(")
           missing = [token for token in required if token not in source]
           if missing:
-              raise SystemExit(f"Missing strategy parity elements: {missing}")
-          print("LEAN strategy parity syntax and no-order safety checks passed.")
+              raise SystemExit(f"Missing LEAN pipeline/rule integration: {missing}")
+          print("LEAN signal-only safety contract passed.")
           PY
