@@ -96,15 +96,19 @@ jobs:
           set -euo pipefail
           CSV="$(find download -maxdepth 1 -type f -name '*.csv' | head -n 1)"
           test -n "$CSV"
-          python -m aron_trader.cli --csv "$CSV" --symbol "$SYMBOL" --strategy ema_rsi | tee backtest-ema-rsi.json
-          python -m aron_trader.cli --csv "$CSV" --symbol "$SYMBOL" --strategy smc | tee backtest-smc.json
+          python -m aron_trader.cli --csv "$CSV" --symbol "$SYMBOL" --strategy ema_rsi | tee backtest-ema-rsi-zero-cost.json
+          python -m aron_trader.cli --csv "$CSV" --symbol "$SYMBOL" --strategy smc | tee backtest-smc-zero-cost.json
+          python -m aron_trader.cli --csv "$CSV" --symbol "$SYMBOL" --strategy ema_rsi --spread 0.0001 --slippage 0.00005 | tee backtest-ema-rsi-cost-sensitivity.json
+          python -m aron_trader.cli --csv "$CSV" --symbol "$SYMBOL" --strategy smc --spread 0.0001 --slippage 0.00005 | tee backtest-smc-cost-sensitivity.json
       - name: Upload data and result
         uses: actions/upload-artifact@v4
         with:
           name: historical-backtest-eurusd-m15-2024
           path: |
             download/*.csv
-            backtest-ema-rsi.json
-            backtest-smc.json
+            backtest-ema-rsi-zero-cost.json
+            backtest-smc-zero-cost.json
+            backtest-ema-rsi-cost-sensitivity.json
+            backtest-smc-cost-sensitivity.json
           if-no-files-found: error
           retention-days: 14
