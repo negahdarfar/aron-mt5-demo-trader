@@ -17,12 +17,25 @@ PERIODS = (
 )
 
 
+def cost_assumptions(symbol: str) -> tuple[float, float, str]:
+    """Return illustrative price-unit costs using FX pip conventions.
+
+    These are sensitivity assumptions, not verified Aron Groups quotes.
+    JPY pairs use a 0.01 pip size; other major pairs use 0.0001.
+    """
+    normalized = symbol.lower().replace("/", "")
+    if normalized.endswith("jpy"):
+        return 0.01, 0.005, "JPY pair: 1.0 pip spread + 0.5 pip slippage"
+    return 0.0001, 0.00005, "Non-JPY pair: 1.0 pip spread + 0.5 pip slippage"
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--csv", required=True)
     parser.add_argument("--symbol", default="eurusd")
     args = parser.parse_args()
     frame = load_ohlcv_csv(args.csv)
+    base_spread, base_slippage, cost_note = cost_assumptions(args.symbol)
     variants = (
         ("baseline_all_hours", "atr_breakout", None),
         ("atr_breakout_h1_h4", "atr_breakout_mtf", None),
@@ -30,6 +43,12 @@ def main():
     )
     output = {
         "symbol": args.symbol,
+        "cost_assumptions": {
+            "base_spread_price_units": base_spread,
+            "base_slippage_price_units": base_slippage,
+            "description": cost_note,
+            "warning": "Illustrative pip-normalized sensitivity only; verify live Aron Groups spread, commission, swap, execution and contract specifications before any demo/live conclusions.",
+        },
         "method_note": (
             "Fixed rules; monthly independent OOS folds; each fold starts at 1000 units. "
             "H1/H4 context uses only fully closed higher-timeframe candles and is joined "
@@ -48,8 +67,8 @@ def main():
                 test_end=end,
                 starting_balance=1000.0,
                 risk_fraction=0.005,
-                base_spread=0.0001,
-                base_slippage=0.00005,
+                base_spread=base_spread,
+                base_slippage=base_slippage,
                 cost_multipliers=(1.0, 2.0),
                 fold_months=1,
                 allowed_entry_hours_utc=hours,
