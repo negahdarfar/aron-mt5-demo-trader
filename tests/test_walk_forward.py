@@ -46,15 +46,17 @@ def test_trade_diagnostics_break_down_exit_reasons_and_directions():
     from aron_trader.walk_forward import _trade_diagnostics
 
     report = _trade_diagnostics([
-        {"side": "BUY", "pnl": 12.0, "exit_reason": "target"},
-        {"side": "SELL", "pnl": -7.0, "exit_reason": "stop"},
-        {"side": "BUY", "pnl": -3.0, "exit_reason": "max_drawdown_halt"},
-        {"side": "SELL", "pnl": 5.0, "exit_reason": "target"},
+        {"side": "BUY", "pnl": 12.0, "exit_reason": "target", "entry_time": "2026-06-01T08:15:00Z"},
+        {"side": "SELL", "pnl": -7.0, "exit_reason": "stop", "entry_time": "2026-06-01T08:45:00Z"},
+        {"side": "BUY", "pnl": -3.0, "exit_reason": "max_drawdown_halt", "entry_time": "2026-06-01T14:00:00Z"},
+        {"side": "SELL", "pnl": 5.0, "exit_reason": "target", "entry_time": "2026-06-01T14:30:00Z"},
     ])
     assert report["closed_trades"] == 4
     assert report["exit_reasons"]["target"]["count"] == 2
     assert report["exit_reasons"]["max_drawdown_halt"]["net_pnl"] == -3.0
     assert report["side_breakdown"]["BUY"]["count"] == 2
+    assert report["entry_hour_utc"]["08:00 UTC"]["count"] == 2
+    assert report["entry_hour_utc"]["14:00 UTC"]["net_pnl"] == 2.0
     assert report["average_win"] == pytest.approx(8.5)
     assert report["average_loss"] == pytest.approx(-5.0)
     assert report["largest_loss"] == -7.0
@@ -67,4 +69,5 @@ def test_trade_diagnostics_handles_empty_trade_log():
     report = _trade_diagnostics([])
     assert report["closed_trades"] == 0
     assert report["exit_reasons"] == {}
+    assert report["entry_hour_utc"] == {}
     assert report["max_consecutive_losses"] == 0
