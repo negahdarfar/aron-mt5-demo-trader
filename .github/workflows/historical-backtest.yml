@@ -51,6 +51,7 @@ on:
           - momentum
           - atr_breakout
           - trend_pullback
+          - bos_retest
 
 permissions:
   contents: read
