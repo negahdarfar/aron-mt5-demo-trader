@@ -27,7 +27,7 @@ def _adx(data: pd.DataFrame) -> pd.Series:
 
 def _closed_context(base: pd.DataFrame, rule: str, name: str) -> pd.DataFrame:
     tf = (base.set_index("timestamp")
-          .resample(rule, label="right", closed="right")
+          .resample(rule, label="right", closed="left")
           .agg({"open":"first","high":"max","low":"min","close":"last","volume":"sum"})
           .dropna().reset_index())
     tf = add_indicators(tf)
