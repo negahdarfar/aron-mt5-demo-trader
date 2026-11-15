@@ -1,0 +1,37 @@
+name: LEAN Signal Scaffold Syntax Check
+
+on:
+  push:
+    branches: [lean-engine-evaluation]
+    paths:
+      - "lean-research/**"
+      - ".github/workflows/lean-syntax-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile LEAN algorithm source
+        run: python -m py_compile lean-research/main.py
+      - name: Verify signal-only safety contract
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          source = Path("lean-research/main.py").read_text()
+          forbidden = ("MarketOrder(", "SetHoldings(", "LimitOrder(", "StopMarketOrder(")
+          found = [token for token in forbidden if token in source]
+          if found:
+              raise SystemExit(f"Unexpected order submission methods: {found}")
+          required = ("self.AddForex(", "self.h1 = TradeBarConsolidator", "self.h4 = TradeBarConsolidator")
+          missing = [token for token in required if token not in source]
+          if missing:
+              raise SystemExit(f"Missing LEAN data pipeline elements: {missing}")
+          print("LEAN scaffold syntax and no-order safety contract passed.")
+          PY
