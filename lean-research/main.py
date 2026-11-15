@@ -1,16 +1,14 @@
 from AlgorithmImports import *
 from collections import deque
 from datetime import timedelta
-from statistics import mean
+from strategy_rules import atr_breakout_direction, mtf_context_agrees, is_selected_utc_hour
 
 
 class AtrMtfSignalDiagnostics(QCAlgorithm):
     """Signal-only LEAN port of the repository's fixed ATR + H1/H4 rules.
 
-    Mirrors atr_breakout.py defaults: ATR(14), prior 20-bar channel,
-    prior 50-value ATR mean and 1.10 expansion. H1/H4 bias mirrors
-    mtf_strategy.py: EMA(20) versus EMA(50), gated by ADX(14) >= 16.
-    The 07/15 UTC variant is diagnostic only. No orders are submitted.
+    ATR(14) Wilder, prior 20-bar channel, prior 50 ATR mean, 1.10 expansion.
+    H1/H4 trend uses EMA20/EMA50 and ADX(14) >= 16. No orders are submitted.
     """
 
     def Initialize(self):
@@ -18,7 +16,6 @@ class AtrMtfSignalDiagnostics(QCAlgorithm):
         self.SetEndDate(2025, 10, 1)
         self.SetCash(1000)
         self.SetTimeZone(TimeZones.Utc)
-
         self.symbol = self.AddForex("EURUSD", Resolution.Minute, Market.Oanda).Symbol
 
         self.m15 = TradeBarConsolidator(timedelta(minutes=15))
@@ -35,7 +32,6 @@ class AtrMtfSignalDiagnostics(QCAlgorithm):
         self.h4_fast = ExponentialMovingAverage(20)
         self.h4_slow = ExponentialMovingAverage(50)
         self.h4_adx = AverageDirectionalIndex(14)
-
         self.RegisterIndicator(self.symbol, self.atr, self.m15)
         for indicator in (self.h1_fast, self.h1_slow, self.h1_adx):
             self.RegisterIndicator(self.symbol, indicator, self.h1)
@@ -45,7 +41,6 @@ class AtrMtfSignalDiagnostics(QCAlgorithm):
         self.m15.DataConsolidated += self.OnM15
         self.h1.DataConsolidated += self.OnH1
         self.h4.DataConsolidated += self.OnH4
-
         self.last_h1_end = None
         self.last_h4_end = None
         self.h1_bias = 0
@@ -76,43 +71,34 @@ class AtrMtfSignalDiagnostics(QCAlgorithm):
         self.h4_bias = self._bias(self.h4_fast, self.h4_slow, self.h4_adx)
 
     def OnM15(self, sender, bar):
-        # Evaluate using prior 20 highs/lows and prior 50 ATR values.
-        if (self.atr.IsReady and len(self.prior_highs) == 20
-                and len(self.prior_atrs) == 50):
-            atr_baseline = mean(self.prior_atrs)
-            volatile = self.atr.Current.Value > atr_baseline * 1.10
-            bullish_breakout = volatile and bar.Close > max(self.prior_highs)
-            bearish_breakout = volatile and bar.Close < min(self.prior_lows)
-
-            if bullish_breakout or bearish_breakout:
-                side = "LONG" if bullish_breakout else "SHORT"
+        if self.atr.IsReady:
+            direction = atr_breakout_direction(
+                float(bar.Close), float(self.atr.Current.Value),
+                list(self.prior_highs), list(self.prior_lows), list(self.prior_atrs),
+            )
+            # Warm-up bars build indicators/history but are excluded from reported counts.
+            if direction and not self.IsWarmingUp:
                 self.signal_counts["baseline"] += 1
-
-                context_is_closed = (
-                    self.last_h1_end is not None
-                    and self.last_h4_end is not None
-                    and self.last_h1_end <= bar.EndTime
-                    and self.last_h4_end <= bar.EndTime
-                )
-                aligned = context_is_closed and (
-                    (bullish_breakout and self.h1_bias == 1 and self.h4_bias == 1)
-                    or (bearish_breakout and self.h1_bias == -1 and self.h4_bias == -1)
+                aligned = mtf_context_agrees(
+                    direction, self.h1_bias, self.h4_bias,
+                    self.last_h1_end, self.last_h4_end, bar.EndTime,
                 )
                 if aligned:
                     self.signal_counts["h1_h4"] += 1
-                    if bar.EndTime.hour in (7, 15):
+                    if is_selected_utc_hour(bar.EndTime.hour):
                         self.signal_counts["h1_h4_hours_07_15_utc"] += 1
                     self.Debug(
-                        f"ATR_MTF {side} {bar.EndTime} close={bar.Close} "
+                        f"ATR_MTF {'LONG' if direction == 1 else 'SHORT'} "
+                        f"{bar.EndTime} close={bar.Close} "
                         f"atr={self.atr.Current.Value:.6g} "
                         f"h1={self.h1_bias} h4={self.h4_bias}"
                     )
 
-        # Add current bar only after evaluating it, preserving shifted features.
+        # Append after evaluation: current candle is excluded from its own thresholds.
         if self.atr.IsReady:
-            self.prior_atrs.append(self.atr.Current.Value)
-        self.prior_highs.append(bar.High)
-        self.prior_lows.append(bar.Low)
+            self.prior_atrs.append(float(self.atr.Current.Value))
+        self.prior_highs.append(float(bar.High))
+        self.prior_lows.append(float(bar.Low))
 
     def OnEndOfAlgorithm(self):
         self.Debug(f"DIAGNOSTIC_SIGNAL_COUNTS {self.signal_counts}")
