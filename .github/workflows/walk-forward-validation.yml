@@ -1,6 +1,11 @@
 name: ARON Walk-Forward Validation
 
 on:
+  push:
+    paths:
+      - ".github/workflows/walk-forward-validation.yml"
+      - "src/aron_trader/walk_forward.py"
+      - "scripts/run_walk_forward.py"
   workflow_dispatch:
     inputs:
       symbol:
@@ -59,10 +64,10 @@ jobs:
           pip install -e .
       - name: Download historical candles
         env:
-          SYMBOL: ${{ inputs.symbol }}
-          TIMEFRAME: ${{ inputs.timeframe }}
-          DATA_START: ${{ inputs.data_start }}
-          TEST_END: ${{ inputs.test_end }}
+          SYMBOL: ${{ inputs.symbol || 'eurusd' }}
+          TIMEFRAME: ${{ inputs.timeframe || 'm15' }}
+          DATA_START: ${{ inputs.data_start || '2025-08-01' }}
+          TEST_END: ${{ inputs.test_end || '2026-11-01' }}
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -77,8 +82,8 @@ jobs:
       - name: Run monthly rolling OOS validation
         env:
           SYMBOL: ${{ inputs.symbol }}
-          STRATEGY: ${{ inputs.strategy }}
-          TEST_START: ${{ inputs.test_start }}
+          STRATEGY: ${{ inputs.strategy || 'atr_breakout' }}
+          TEST_START: ${{ inputs.test_start || '2026-05-01' }}
           TEST_END: ${{ inputs.test_end }}
         run: |
           set -euo pipefail
@@ -88,7 +93,7 @@ jobs:
       - name: Upload report
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ format('walk-forward-{0}-{1}-{2}', inputs.strategy, inputs.symbol, inputs.timeframe) }}
+          name: ${{ format('walk-forward-{0}-{1}-{2}', inputs.strategy || 'atr_breakout', inputs.symbol || 'eurusd', inputs.timeframe || 'm15') }}
           path: |
             walk-forward-*.json
             download/*.csv
