@@ -81,7 +81,7 @@ jobs:
           test -d download
       - name: Run monthly rolling OOS validation
         env:
-          SYMBOL: ${{ inputs.symbol }}
+          SYMBOL: ${{ inputs.symbol || 'eurusd' }}
           STRATEGY: ${{ inputs.strategy || 'atr_breakout' }}
           TEST_START: ${{ inputs.test_start || '2026-05-01' }}
           TEST_END: ${{ inputs.test_end || '2026-11-01' }}
