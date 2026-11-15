@@ -44,6 +44,7 @@ on:
           - ema_rsi
           - smc
           - pro
+          - mtf
 
 permissions:
   contents: read
