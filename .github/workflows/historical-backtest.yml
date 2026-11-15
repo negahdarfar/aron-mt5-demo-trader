@@ -1,0 +1,105 @@
+name: ARON Historical Backtest
+
+on:
+  workflow_dispatch:
+    inputs:
+      symbol:
+        description: "Market instrument"
+        required: true
+        type: choice
+        options:
+          - eurusd
+          - gbpusd
+          - usdjpy
+          - xauusd
+      timeframe:
+        description: "Candle timeframe"
+        required: true
+        type: choice
+        options:
+          - m15
+          - h1
+          - h4
+          - d1
+      start_date:
+        description: "Start date (YYYY-MM-DD)"
+        required: true
+        type: string
+        default: "2024-01-01"
+      end_date:
+        description: "End date (YYYY-MM-DD)"
+        required: true
+        type: string
+        default: "2025-01-01"
+      strategy:
+        description: "Research strategy"
+        required: true
+        type: choice
+        options:
+          - ema_rsi
+          - smc
+
+permissions:
+  contents: read
+
+jobs:
+  historical-backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install Python package
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -e .
+      - name: Download historical candles
+        env:
+          SYMBOL: ${{ inputs.symbol }}
+          TIMEFRAME: ${{ inputs.timeframe }}
+          START_DATE: ${{ inputs.start_date }}
+          END_DATE: ${{ inputs.end_date }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os
+          from datetime import date
+          start = date.fromisoformat(os.environ["START_DATE"])
+          end = date.fromisoformat(os.environ["END_DATE"])
+          if end <= start:
+              raise SystemExit("End date must be after start date")
+          if (end - start).days > 730:
+              raise SystemExit("Limit each run to 730 days; use smaller date ranges")
+          PY
+          npx --yes dukascopy-node@latest -i "$SYMBOL" -from "$START_DATE" -to "$END_DATE" -t "$TIMEFRAME" -f csv -v
+          test -d download
+          find download -maxdepth 1 -type f -name '*.csv' -print
+      - name: Run offline backtest
+        env:
+          SYMBOL: ${{ inputs.symbol }}
+          STRATEGY: ${{ inputs.strategy }}
+          START_DATE: ${{ inputs.start_date }}
+          END_DATE: ${{ inputs.end_date }}
+        run: |
+          set -euo pipefail
+          CSV="$(find download -maxdepth 1 -type f -name '*.csv' | head -n 1)"
+          test -n "$CSV"
+          python -m aron_trader.cli --csv "$CSV" --symbol "$SYMBOL" --strategy "$STRATEGY" | tee backtest-result.json
+      - name: Upload data and result
+        uses: actions/upload-artifact@v4
+        with:
+          name: historical-backtest-${{ inputs.symbol }}-${{ inputs.timeframe }}-${{ inputs.start_date }}-${{ inputs.end_date }}
+          path: |
+            download/*.csv
+            backtest-result.json
+          if-no-files-found: error
+          retention-days: 14
