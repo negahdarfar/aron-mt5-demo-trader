@@ -1,0 +1,96 @@
+name: ARON Walk-Forward Validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      symbol:
+        description: "Market instrument"
+        required: true
+        type: choice
+        options: [eurusd, gbpusd, usdjpy, xauusd]
+        default: eurusd
+      timeframe:
+        description: "Candle timeframe"
+        required: true
+        type: choice
+        options: [m15, h1, h4, d1]
+        default: m15
+      strategy:
+        description: "Fixed strategy rules (no optimization)"
+        required: true
+        type: choice
+        options: [ema_rsi, smc, pro, mtf, wizards, donchian, ema_trend, momentum, atr_breakout, trend_pullback, bos_retest]
+        default: atr_breakout
+      data_start:
+        description: "Historical warm-up start date (UTC)"
+        required: true
+        type: string
+        default: "2025-08-01"
+      test_start:
+        description: "First out-of-sample month (UTC, first day)"
+        required: true
+        type: string
+        default: "2026-05-01"
+      test_end:
+        description: "Exclusive end date (UTC, first day)"
+        required: true
+        type: string
+        default: "2026-11-01"
+
+permissions:
+  contents: read
+
+jobs:
+  walk-forward:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -e .
+      - name: Download historical candles
+        env:
+          SYMBOL: ${{ inputs.symbol }}
+          TIMEFRAME: ${{ inputs.timeframe }}
+          DATA_START: ${{ inputs.data_start }}
+          TEST_END: ${{ inputs.test_end }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os
+          from datetime import date
+          start, end = date.fromisoformat(os.environ["DATA_START"]), date.fromisoformat(os.environ["TEST_END"])
+          if end <= start or (end - start).days > 730:
+              raise SystemExit("Invalid date range; maximum download window is 730 days")
+          PY
+          npx --yes dukascopy-node@latest -i "$SYMBOL" -from "$DATA_START" -to "$TEST_END" -t "$TIMEFRAME" -f csv -v --retries 3 --cache
+          test -d download
+      - name: Run monthly rolling OOS validation
+        env:
+          SYMBOL: ${{ inputs.symbol }}
+          STRATEGY: ${{ inputs.strategy }}
+          TEST_START: ${{ inputs.test_start }}
+          TEST_END: ${{ inputs.test_end }}
+        run: |
+          set -euo pipefail
+          CSV="$(find download -maxdepth 1 -type f -name '*.csv' | head -n 1)"
+          test -n "$CSV"
+          python scripts/run_walk_forward.py --csv "$CSV" --symbol "$SYMBOL" --strategy "$STRATEGY" --test-start "$TEST_START" --test-end "$TEST_END" --fold-months 1 | tee "walk-forward-$STRATEGY-$SYMBOL.json"
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ format('walk-forward-{0}-{1}-{2}', inputs.strategy, inputs.symbol, inputs.timeframe) }}
+          path: |
+            walk-forward-*.json
+            download/*.csv
+          if-no-files-found: error
+          retention-days: 30
