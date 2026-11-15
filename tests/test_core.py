@@ -42,3 +42,29 @@ def test_backtest_returns_metrics_without_execution():
     assert result["starting_balance"] == 1000
     assert result["ending_balance"] > 0
     assert "trade_log" in result
+
+
+def test_smc_features_are_causal_and_have_expected_columns():
+    from aron_trader.smc import add_smc_features
+    data = sample_data(30)
+    result = add_smc_features(data, swing_left=2, swing_right=2)
+    assert {"bullish_bos", "bearish_bos", "bullish_fvg", "bearish_fvg",
+            "bullish_ob_low", "bearish_ob_high", "smc_signal"}.issubset(result.columns)
+    # A swing at source index 5 cannot be confirmed before index 7.
+    pivot_data = sample_data(12)
+    pivot_data["high"] = [1, 2, 3, 5, 3, 2, 1, 2, 3, 2, 1, 2]
+    pivot_data["low"] = [x - 0.01 for x in pivot_data["high"]]
+    pivot_result = add_smc_features(pivot_data, swing_left=2, swing_right=2)
+    assert pd.isna(pivot_result.loc[5, "confirmed_swing_high"])
+    assert pivot_result.loc[6, "confirmed_swing_high"] == 5
+
+
+def test_backtest_accepts_smc_strategy():
+    result = run_backtest(sample_data(), strategy="smc")
+    assert result["strategy"] == "smc"
+    assert result["starting_balance"] == 1000
+
+
+def test_backtest_rejects_unknown_strategy():
+    with pytest.raises(ValueError):
+        run_backtest(sample_data(), strategy="unknown")
