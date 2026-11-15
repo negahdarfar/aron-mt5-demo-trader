@@ -84,7 +84,7 @@ jobs:
           SYMBOL: ${{ inputs.symbol }}
           STRATEGY: ${{ inputs.strategy || 'atr_breakout' }}
           TEST_START: ${{ inputs.test_start || '2026-05-01' }}
-          TEST_END: ${{ inputs.test_end }}
+          TEST_END: ${{ inputs.test_end || '2026-11-01' }}
         run: |
           set -euo pipefail
           CSV="$(find download -maxdepth 1 -type f -name '*.csv' | head -n 1)"
