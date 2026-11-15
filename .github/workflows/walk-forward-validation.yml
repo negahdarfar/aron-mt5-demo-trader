@@ -5,6 +5,9 @@ on:
     paths:
       - ".github/workflows/walk-forward-validation.yml"
       - "src/aron_trader/walk_forward.py"
+      - "src/aron_trader/backtest.py"
+      - "src/aron_trader/atr_breakout_mtf.py"
+      - "scripts/compare_atr_mtf_variants.py"
       - "scripts/run_walk_forward.py"
       - "scripts/compare_entry_hours.py"
   workflow_dispatch:
@@ -25,7 +28,7 @@ on:
         description: "Fixed strategy rules (no optimization)"
         required: true
         type: choice
-        options: [ema_rsi, smc, pro, mtf, wizards, donchian, ema_trend, momentum, atr_breakout, trend_pullback, bos_retest]
+        options: [ema_rsi, smc, pro, mtf, wizards, donchian, ema_trend, momentum, atr_breakout, atr_breakout_mtf, trend_pullback, bos_retest]
         default: atr_breakout
       data_start:
         description: "Historical warm-up start date (UTC)"
@@ -93,6 +96,7 @@ jobs:
           python scripts/run_walk_forward.py --csv "$CSV" --symbol "$SYMBOL" --strategy "$STRATEGY" --test-start "$TEST_START" --test-end "$TEST_END" --fold-months 1 | tee "walk-forward-$STRATEGY-$SYMBOL.json"
           if [ "$STRATEGY" = "atr_breakout" ] && [ "$SYMBOL" = "eurusd" ]; then
             python scripts/compare_entry_hours.py --csv "$CSV" --symbol "$SYMBOL" --test-start "2025-09-01" --test-end "2026-05-01" | tee "entry-hour-holdout-$SYMBOL.json"
+            python scripts/compare_atr_mtf_variants.py --csv "$CSV" --symbol "$SYMBOL" | tee "atr-mtf-comparison-$SYMBOL.json"
           fi
       - name: Upload report
         uses: actions/upload-artifact@v4
@@ -101,6 +105,7 @@ jobs:
           path: |
             walk-forward-*.json
             entry-hour-holdout-*.json
+            atr-mtf-comparison-*.json
             download/*.csv
           if-no-files-found: error
           retention-days: 30
