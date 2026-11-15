@@ -18,11 +18,19 @@ def _trade_diagnostics(trades: list[dict]) -> dict:
     pnl = [float(t["pnl"]) for t in trades]
     reasons: dict[str, dict] = {}
     sides: dict[str, dict] = {}
+    hours: dict[str, dict] = {}
     for trade in trades:
         reason = str(trade.get("exit_reason", "unknown"))
         side = str(trade.get("side", "unknown"))
         for bucket, key in ((reasons, reason), (sides, side)):
             item = bucket.setdefault(key, {"count": 0, "wins": 0, "net_pnl": 0.0})
+            item["count"] += 1
+            item["wins"] += int(float(trade["pnl"]) > 0)
+            item["net_pnl"] += float(trade["pnl"])
+        entry_time = pd.to_datetime(trade.get("entry_time"), utc=True, errors="coerce")
+        if pd.notna(entry_time):
+            hour = f"{entry_time.hour:02d}:00 UTC"
+            item = hours.setdefault(hour, {"count": 0, "wins": 0, "net_pnl": 0.0})
             item["count"] += 1
             item["wins"] += int(float(trade["pnl"]) > 0)
             item["net_pnl"] += float(trade["pnl"])
@@ -39,6 +47,7 @@ def _trade_diagnostics(trades: list[dict]) -> dict:
         "closed_trades": len(trades),
         "exit_reasons": reasons,
         "side_breakdown": sides,
+        "entry_hour_utc": hours,
         "average_win": sum(winners) / len(winners) if winners else 0.0,
         "average_loss": sum(losers) / len(losers) if losers else 0.0,
         "largest_win": max(winners, default=0.0),
