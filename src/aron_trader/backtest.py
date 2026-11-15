@@ -61,6 +61,7 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
     trades = []
     position = None
     daily_start_equity = balance
+    last_equity = balance
     active_day = None
     trading_halted_daily = False
     daily_loss_limit_ever_hit = False
@@ -74,7 +75,7 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
         current_day = pd.Timestamp(bar["timestamp"]).date()
         if current_day != active_day:
             active_day = current_day
-            daily_start_equity = balance
+            daily_start_equity = last_equity
             trading_halted_daily = False
 
         if position is not None:
@@ -99,6 +100,7 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
             unrealized = direction * (float(bar["close"]) - position["entry"]) * position["units"]
             unrealized -= round_trip_cost * position["units"]
         equity = balance + unrealized
+        last_equity = equity
         equity_peak = max(equity_peak, equity)
         if equity_peak > 0:
             max_drawdown = max(max_drawdown, (equity_peak - equity) / equity_peak)
@@ -135,6 +137,20 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
         max_drawdown = max(max_drawdown, (equity_peak - ending_equity) / equity_peak)
 
     wins = sum(t["pnl"] > 0 for t in trades)
+    gross_profit = sum(t["pnl"] for t in trades if t["pnl"] > 0)
+    gross_loss = -sum(t["pnl"] for t in trades if t["pnl"] < 0)
+    losses = len(trades) - wins
+    average_win = gross_profit / wins if wins else 0.0
+    average_loss = gross_loss / losses if losses else 0.0
+    profit_factor = gross_profit / gross_loss if gross_loss else (None if not gross_profit else "infinity")
+    expectancy = sum(t["pnl"] for t in trades) / len(trades) if trades else 0.0
+    loss_streak = max_loss_streak = 0
+    for trade in trades:
+        if trade["pnl"] < 0:
+            loss_streak += 1
+            max_loss_streak = max(max_loss_streak, loss_streak)
+        else:
+            loss_streak = 0
     return {
         "strategy": strategy,
         "starting_balance": starting_balance,
@@ -145,6 +161,13 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
         "trades": len(trades),
         "wins": wins,
         "win_rate": wins / len(trades) if trades else 0.0,
+        "gross_profit": gross_profit,
+        "gross_loss": gross_loss,
+        "profit_factor": profit_factor,
+        "expectancy_per_trade": expectancy,
+        "average_win": average_win,
+        "average_loss": average_loss,
+        "max_consecutive_losses": max_loss_streak,
         "max_drawdown": max_drawdown,
         "daily_loss_limit_hit": daily_loss_limit_ever_hit,
         "max_drawdown_limit_hit": trading_halted_drawdown,
