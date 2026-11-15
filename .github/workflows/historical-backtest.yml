@@ -49,6 +49,7 @@ on:
           - donchian
           - ema_trend
           - momentum
+          - atr_breakout
 
 permissions:
   contents: read
