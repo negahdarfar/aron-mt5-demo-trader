@@ -8,7 +8,7 @@ A separate, safety-first research and backtesting project for the Aron Groups MT
 - CSV OHLCV input for any symbol/timeframe.
 - EMA trend + RSI pullback signal prototype.
 - ATR-based stop distance and risk-based position sizing calculator.
-- Backtest simulator with spread/slippage assumptions, one open position at a time, and fixed fractional risk.
+- Offline backtest simulator with conservative stop/target gap fills, marked-to-market open-position equity, round-trip spread/slippage assumptions, one open position at a time, and daily/max-drawdown entry guardrails.
 - Unit tests and GitHub Actions checks.
 - No broker keys, passwords, tokens, or account numbers in the repository.
 
@@ -32,7 +32,7 @@ python -m aron_trader.cli --csv data/sample_ohlcv.csv --symbol EURUSD
 pytest
 ```
 
-The sample CSV is synthetic demonstration data, not historical market data.
+The sample CSV is synthetic demonstration data, not historical market data. Backtest costs are expressed in price units and are a simplified total round-trip assumption; contract size, tick value/account-currency conversion, commissions, swap, margin and broker-specific execution are not modeled. Treat results as research diagnostics, not executable performance estimates.
 
 ## CSV format
 Required columns: `timestamp,open,high,low,close,volume`. Timestamps should be chronological. Use one symbol and timeframe per file.
