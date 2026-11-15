@@ -82,7 +82,7 @@ jobs:
           TIMEFRAME: ${{ github.event_name == 'workflow_dispatch' && inputs.timeframe || 'm15' }}
           START_DATE: ${{ github.event_name == 'workflow_dispatch' && inputs.start_date || '2026-09-01' }}
           END_DATE: ${{ github.event_name == 'workflow_dispatch' && inputs.end_date || '2026-11-01' }}
-          STRATEGY: ${{ github.event_name == 'workflow_dispatch' && inputs.strategy || 'ema_rsi' }}
+          STRATEGY: ${{ github.event_name == 'workflow_dispatch' && inputs.strategy || 'bos_retest' }}
         run: |
           set -euo pipefail
           python - <<'PY'
