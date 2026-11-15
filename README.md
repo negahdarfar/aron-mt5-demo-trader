@@ -8,7 +8,7 @@ A separate, safety-first research and backtesting project for the Aron Groups MT
 - CSV OHLCV input for any symbol/timeframe.
 - EMA trend + RSI pullback signal prototype.
 - ATR-based stop distance and risk-based position sizing calculator.
-- Offline backtest simulator with conservative stop/target gap fills, marked-to-market open-position equity, round-trip spread/slippage assumptions, one open position at a time, and daily/max-drawdown entry guardrails.
+- Offline backtest simulator with conservative stop/target gap fills, marked-to-market open-position equity, conservative gap fills, round-trip spread/slippage assumptions, one open position at a time, daily/max-drawdown entry guardrails, and performance metrics (profit factor, expectancy, average win/loss, max losing streak).
 - Unit tests and GitHub Actions checks.
 - No broker keys, passwords, tokens, or account numbers in the repository.
 
