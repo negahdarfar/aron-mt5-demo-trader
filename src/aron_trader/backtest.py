@@ -55,8 +55,8 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
         raise ValueError("value_per_price_unit_per_lot must be positive")
     if not 0 < max_daily_loss <= 0.10 or not 0 < max_drawdown_limit <= 0.50:
         raise ValueError("Invalid daily loss or drawdown limit")
-    if strategy not in {"ema_rsi", "smc", "pro", "mtf", "wizards"}:
-        raise ValueError("strategy must be 'ema_rsi', 'smc', 'pro', 'mtf' or 'wizards'")
+    if strategy not in {"ema_rsi", "smc", "pro", "mtf", "wizards", "donchian"}:
+        raise ValueError("Unsupported strategy")
 
     data = add_indicators(validate_ohlcv(frame))
     if strategy == "smc":
@@ -69,6 +69,9 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
     elif strategy == "wizards":
         from .wizards_ensemble import add_wizards_features
         data = add_wizards_features(data)
+    elif strategy == "donchian":
+        from .donchian import add_donchian_features
+        data = add_donchian_features(data)
 
     # Indicators are calculated on all available history (warm-up), but only
     # candles inside [trade_start, trade_end) are eligible for positions.
@@ -167,6 +170,7 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
                       else str(prev["pro_signal"]) if strategy == "pro"
                       else str(prev["mtf_signal"]) if strategy == "mtf"
                       else str(prev["wizards_signal"]) if strategy == "wizards"
+                      else str(prev["donchian_signal"]) if strategy == "donchian"
                       else generate_signal(prev))
             atr = prev.get("atr")
             if signal in ("BUY", "SELL") and pd.notna(atr) and atr > 0 and equity > 0:
