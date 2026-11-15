@@ -1,6 +1,6 @@
 # Pine MTF Score Strategy Integration Plan
 
-Status: integration scaffold only. The Pine source received in chat is truncated inside the Support/Resistance engine (at `if high[`), so no claim is made that the indicator has been ported.
+Status: an independent MTF proxy has been implemented in `src/aron_trader/mtf_strategy.py`. The Pine source received in chat is truncated inside the Support/Resistance engine (at `if high[`), so this is NOT a faithful port of the Pine panel or its score weights.
 
 ## Objective
 
@@ -16,7 +16,7 @@ Create an offline, reproducible backtest strategy based on the indicator's actua
 
 The exact score thresholds and panel decision mapping must be extracted from the remaining Pine source before implementation.
 
-## Entry policy (provisional architecture, not yet coded)
+## Implemented proxy entry policy (not Pine parity)
 
 - Evaluate only completed candles.
 - Longs require aligned positive higher-timeframe decisions; shorts require aligned negative decisions.
@@ -26,7 +26,7 @@ The exact score thresholds and panel decision mapping must be extracted from the
 - If required timeframes disagree, do not trade.
 - Avoid double-counting correlated moving-average families when constructing any supplemental composite. Prefer the Pine panel's own normalized score and decision output over inventing a second score.
 
-## Exit and risk policy (provisional architecture, not yet coded)
+## Exit and risk policy (shared backtester)
 
 - Initial stop: structure-based where the completed-bar S/R logic provides a valid level, with ATR fallback/cap.
 - Initial target: minimum planned reward/risk 2.0, subject to valid nearby S/R.
