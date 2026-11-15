@@ -7,6 +7,46 @@ import pandas as pd
 from .backtest import run_backtest
 
 
+def _trade_diagnostics(trades: list[dict]) -> dict:
+    """Compact closed-trade diagnostics retained without storing every trade."""
+    if not trades:
+        return {
+            "closed_trades": 0, "exit_reasons": {}, "side_breakdown": {},
+            "average_win": 0.0, "average_loss": 0.0, "largest_win": 0.0,
+            "largest_loss": 0.0, "max_consecutive_losses": 0,
+        }
+    pnl = [float(t["pnl"]) for t in trades]
+    reasons: dict[str, dict] = {}
+    sides: dict[str, dict] = {}
+    for trade in trades:
+        reason = str(trade.get("exit_reason", "unknown"))
+        side = str(trade.get("side", "unknown"))
+        for bucket, key in ((reasons, reason), (sides, side)):
+            item = bucket.setdefault(key, {"count": 0, "wins": 0, "net_pnl": 0.0})
+            item["count"] += 1
+            item["wins"] += int(float(trade["pnl"]) > 0)
+            item["net_pnl"] += float(trade["pnl"])
+    streak = max_streak = 0
+    for value in pnl:
+        if value < 0:
+            streak += 1
+            max_streak = max(max_streak, streak)
+        else:
+            streak = 0
+    winners = [x for x in pnl if x > 0]
+    losers = [x for x in pnl if x < 0]
+    return {
+        "closed_trades": len(trades),
+        "exit_reasons": reasons,
+        "side_breakdown": sides,
+        "average_win": sum(winners) / len(winners) if winners else 0.0,
+        "average_loss": sum(losers) / len(losers) if losers else 0.0,
+        "largest_win": max(winners, default=0.0),
+        "largest_loss": min(losers, default=0.0),
+        "max_consecutive_losses": max_streak,
+    }
+
+
 def monthly_folds(start: str, end: str, fold_months: int = 1) -> list[tuple[pd.Timestamp, pd.Timestamp]]:
     start_ts = pd.to_datetime(start, utc=True)
     end_ts = pd.to_datetime(end, utc=True)
@@ -65,6 +105,7 @@ def run_walk_forward(
     scenarios = []
     for multiplier in multipliers:
         fold_results = []
+        fold_results_trades = []
         for fold_start, fold_end in folds:
             available = data.loc[data["timestamp"] < fold_end].copy()
             if available.empty or not (available["timestamp"] < fold_start).any():
@@ -79,10 +120,13 @@ def run_walk_forward(
                 trade_start=fold_start.isoformat(),
                 trade_end=fold_end.isoformat(),
             )
-            result.pop("trade_log", None)
+            trade_log = result.pop("trade_log", [])
+            diagnostics = _trade_diagnostics(trade_log)
+            fold_results_trades.append(trade_log)
             fold_results.append({
                 "fold_start": fold_start.isoformat(),
                 "fold_end_exclusive": fold_end.isoformat(),
+                "trade_diagnostics": diagnostics,
                 **result,
             })
 
@@ -106,6 +150,9 @@ def run_walk_forward(
             "worst_fold_drawdown": max((x["max_drawdown"] for x in fold_results), default=0.0),
             "daily_loss_limit_hit_any_fold": any(x["daily_loss_limit_hit"] for x in fold_results),
             "max_drawdown_limit_hit_any_fold": any(x["max_drawdown_limit_hit"] for x in fold_results),
+            "trade_diagnostics": _trade_diagnostics([
+                trade for fold_trades in fold_results_trades for trade in fold_trades
+            ]),
         })
 
     return {
