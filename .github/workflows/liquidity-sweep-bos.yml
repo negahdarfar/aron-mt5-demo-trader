@@ -1,0 +1,61 @@
+name: Liquidity Sweep BOS Multi-Symbol Research
+
+on:
+  push:
+    branches: [liquidity-sweep-bos-research]
+    paths:
+      - ".github/workflows/liquidity-sweep-bos.yml"
+      - "src/aron_trader/**"
+      - "tests/**"
+      - "scripts/compare_liquidity_sweep_bos.py"
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        symbol: [eurusd, gbpusd, usdjpy]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install package and test
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -e .
+          pytest -q
+      - name: Download M15 history
+        env:
+          SYMBOL: ${{ matrix.symbol }}
+        run: |
+          set -euo pipefail
+          npx --yes dukascopy-node@latest -i "$SYMBOL" -from "2025-08-01" -to "2026-11-01" -t "m15" -f csv -v --retries 3 --cache
+          CSV="$(find download -maxdepth 1 -type f -name '*.csv' | head -n 1)"
+          test -n "$CSV"
+          echo "CSV=$CSV" >> "$GITHUB_ENV"
+      - name: Run fixed three-strategy monthly OOS comparison
+        env:
+          SYMBOL: ${{ matrix.symbol }}
+          CSV: ${{ env.CSV }}
+        run: |
+          set -euo pipefail
+          python scripts/compare_liquidity_sweep_bos.py --csv "$CSV" --symbol "$SYMBOL" | tee "liquidity-sweep-bos-$SYMBOL.json"
+      - name: Upload report and source candles
+        uses: actions/upload-artifact@v4
+        with:
+          name: liquidity-sweep-bos-${{ matrix.symbol }}
+          path: |
+            liquidity-sweep-bos-${{ matrix.symbol }}.json
+            download/*.csv
+          if-no-files-found: error
+          retention-days: 30
