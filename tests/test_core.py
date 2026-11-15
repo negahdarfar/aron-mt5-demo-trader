@@ -134,3 +134,25 @@ def test_backtest_liquidates_open_position_when_daily_limit_breached(monkeypatch
     assert halted
     assert result["daily_loss_limit_hit"] is True
     assert result["open_position_at_end"] is False
+
+
+def test_backtest_limits_positions_to_requested_month_window(monkeypatch):
+    import aron_trader.backtest as backtest_module
+
+    data = sample_data(200)
+    monkeypatch.setattr(backtest_module, "generate_signal", lambda row: "BUY")
+    monkeypatch.setattr(
+        backtest_module, "_bar_exit",
+        lambda position, bar: (float(bar["close"]), "test_exit")
+    )
+    result = backtest_module.run_backtest(
+        data, strategy="ema_rsi",
+        trade_start="2025-01-02", trade_end="2025-01-03",
+        max_daily_loss=0.10, max_drawdown_limit=0.50
+    )
+    assert result["trade_start"] == "2025-01-02 00:00:00+00:00"
+    assert result["trade_end_exclusive"] == "2025-01-03 00:00:00+00:00"
+    assert result["trade_log"]
+    for trade in result["trade_log"]:
+        assert pd.Timestamp("2025-01-02", tz="UTC") <= trade["entry_time"]
+        assert trade["entry_time"] < pd.Timestamp("2025-01-03", tz="UTC")
