@@ -1,4 +1,5 @@
 name: ARON Historical Backtest
+# Monthly trading window: October 2026; September candles are warm-up only.
 
 on:
   push:
