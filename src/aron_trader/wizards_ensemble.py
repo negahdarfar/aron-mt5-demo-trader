@@ -60,10 +60,11 @@ def add_wizards_features(frame: pd.DataFrame) -> pd.DataFrame:
             continue
         adx = float(p["adx"])
         direction = int(p["h1_bias"])
-        if direction == 0 or int(p["h4_bias"]) != direction or int(p["d1_bias"]) != direction:
-            continue
+        htf_biases = (int(p["d1_bias"]), int(p["h4_bias"]), direction)
 
         if adx >= 22:
+            if direction == 0 or int(p["h4_bias"]) != direction or int(p["d1_bias"]) != direction:
+                continue
             regime = "trend"
             votes = []
             # Turtle-style Donchian breakout (exclude signal bar).
@@ -92,7 +93,7 @@ def add_wizards_features(frame: pd.DataFrame) -> pd.DataFrame:
         elif adx <= 18:
             # Mean reversion is intentionally disabled unless all HTF trends are
             # neutral: a strong higher-timeframe bias is not faded.
-            if any(int(p[k]) != 0 for k in ("d1_bias","h4_bias","h1_bias")):
+            if any(htf_biases):
                 continue
             prev = data.iloc[i-2]
             buy = p["rsi"] > 30 and prev["rsi"] <= 30 and p["close"] > p["open"]
