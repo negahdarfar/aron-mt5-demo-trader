@@ -29,12 +29,12 @@ on:
         description: "Start date (YYYY-MM-DD)"
         required: true
         type: string
-        default: "2024-01-01"
+        default: "2026-09-01"
       end_date:
         description: "End date (YYYY-MM-DD)"
         required: true
         type: string
-        default: "2025-01-01"
+        default: "2026-11-01"
       strategy:
         description: "Research strategy"
         required: true
@@ -96,14 +96,15 @@ jobs:
           set -euo pipefail
           CSV="$(find download -maxdepth 1 -type f -name '*.csv' | head -n 1)"
           test -n "$CSV"
-          python -m aron_trader.cli --csv "$CSV" --symbol "$SYMBOL" --strategy ema_rsi | tee backtest-ema-rsi-zero-cost.json
-          python -m aron_trader.cli --csv "$CSV" --symbol "$SYMBOL" --strategy smc | tee backtest-smc-zero-cost.json
-          python -m aron_trader.cli --csv "$CSV" --symbol "$SYMBOL" --strategy ema_rsi --spread 0.0001 --slippage 0.00005 | tee backtest-ema-rsi-cost-sensitivity.json
-          python -m aron_trader.cli --csv "$CSV" --symbol "$SYMBOL" --strategy smc --spread 0.0001 --slippage 0.00005 | tee backtest-smc-cost-sensitivity.json
+          WINDOW="--trade-start 2026-10-01 --trade-end 2026-11-01"
+          python -m aron_trader.cli --csv "$CSV" --symbol "$SYMBOL" --strategy ema_rsi $WINDOW | tee backtest-ema-rsi-zero-cost.json
+          python -m aron_trader.cli --csv "$CSV" --symbol "$SYMBOL" --strategy smc $WINDOW | tee backtest-smc-zero-cost.json
+          python -m aron_trader.cli --csv "$CSV" --symbol "$SYMBOL" --strategy ema_rsi --spread 0.0001 --slippage 0.00005 $WINDOW | tee backtest-ema-rsi-cost-sensitivity.json
+          python -m aron_trader.cli --csv "$CSV" --symbol "$SYMBOL" --strategy smc --spread 0.0001 --slippage 0.00005 $WINDOW | tee backtest-smc-cost-sensitivity.json
       - name: Upload data and result
         uses: actions/upload-artifact@v4
         with:
-          name: historical-backtest-eurusd-m15-2024
+          name: historical-backtest-october-2026-eurusd-m15
           path: |
             download/*.csv
             backtest-ema-rsi-zero-cost.json
