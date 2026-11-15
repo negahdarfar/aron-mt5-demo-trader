@@ -63,8 +63,10 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
 
     # Indicators are calculated on all available history (warm-up), but only
     # candles inside [trade_start, trade_end) are eligible for positions.
-    start_ts = pd.Timestamp(trade_start, tz="UTC") if trade_start else data["timestamp"].iloc[0]
-    end_ts = pd.Timestamp(trade_end, tz="UTC") if trade_end else data["timestamp"].iloc[-1] + pd.Timedelta(nanoseconds=1)
+    start_ts = (pd.to_datetime(trade_start, utc=True).as_unit("ns")
+                if trade_start else data["timestamp"].iloc[0])
+    end_ts = (pd.to_datetime(trade_end, utc=True).as_unit("ns")
+              if trade_end else data["timestamp"].iloc[-1] + pd.Timedelta(seconds=1))
     if end_ts <= start_ts:
         raise ValueError("trade_end must be later than trade_start")
     start_idx = int(data["timestamp"].searchsorted(start_ts, side="left"))
