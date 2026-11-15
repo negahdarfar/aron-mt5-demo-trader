@@ -112,7 +112,7 @@ jobs:
       - name: Upload selected strategy results
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ format('backtest-{0}-{1}-{2}', inputs.strategy || 'trend_pullback', inputs.symbol || 'eurusd', inputs.timeframe || 'm15') }}
+          name: ${{ format('backtest-{0}-{1}-{2}', inputs.strategy || 'ema_rsi', inputs.symbol || 'eurusd', inputs.timeframe || 'm15') }}
           path: |
             download/*.csv
             backtest-*.json
