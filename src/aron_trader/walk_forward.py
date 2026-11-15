@@ -134,6 +134,13 @@ def run_walk_forward(
         gross_profit = sum(x["gross_profit"] for x in fold_results)
         gross_loss = sum(x["gross_loss"] for x in fold_results)
         net_profit = sum(x["net_profit"] for x in fold_results)
+        scenario_diagnostics = _trade_diagnostics([
+            trade for fold_trades in fold_results_trades for trade in fold_trades
+        ])
+        # Monthly folds have independent accounts; do not create a loss streak across fold boundaries.
+        scenario_diagnostics["max_consecutive_losses"] = max(
+            (x["trade_diagnostics"]["max_consecutive_losses"] for x in fold_results), default=0
+        )
         scenarios.append({
             "cost_multiplier": multiplier,
             "spread": base_spread * multiplier,
@@ -150,9 +157,7 @@ def run_walk_forward(
             "worst_fold_drawdown": max((x["max_drawdown"] for x in fold_results), default=0.0),
             "daily_loss_limit_hit_any_fold": any(x["daily_loss_limit_hit"] for x in fold_results),
             "max_drawdown_limit_hit_any_fold": any(x["max_drawdown_limit_hit"] for x in fold_results),
-            "trade_diagnostics": _trade_diagnostics([
-                trade for fold_trades in fold_results_trades for trade in fold_trades
-            ]),
+            "trade_diagnostics": scenario_diagnostics,
         })
 
     return {
