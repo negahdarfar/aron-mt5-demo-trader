@@ -50,6 +50,7 @@ on:
           - ema_trend
           - momentum
           - atr_breakout
+          - trend_pullback
 
 permissions:
   contents: read
