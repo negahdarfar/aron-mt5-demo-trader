@@ -69,8 +69,8 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
               if trade_end else data["timestamp"].iloc[-1] + pd.Timedelta(seconds=1))
     if end_ts <= start_ts:
         raise ValueError("trade_end must be later than trade_start")
-    start_idx = int(data["timestamp"].searchsorted(start_ts, side="left"))
-    end_idx = int(data["timestamp"].searchsorted(end_ts, side="left"))
+    start_idx = int((data["timestamp"] < start_ts).sum())
+    end_idx = int((data["timestamp"] < end_ts).sum())
     if end_idx - start_idx < 2:
         raise ValueError("Not enough candles inside the requested trading window")
 
