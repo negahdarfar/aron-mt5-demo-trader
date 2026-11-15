@@ -35,3 +35,35 @@ def test_prefix_invariance_detects_future_information_leak():
 def test_prefix_invariance_rejects_invalid_cutoff():
     with pytest.raises(ValueError):
         check_prefix_invariance(causal_builder, sample_frame(), cutoff=20)
+
+
+def market_frame(n=180):
+    import numpy as np
+    close = [1.10 + 0.0002 * i + 0.0008 * np.sin(i / 5) for i in range(n)]
+    return pd.DataFrame({
+        "timestamp": pd.date_range("2025-01-01", periods=n, freq="15min", tz="UTC"),
+        "open": close,
+        "high": [x + 0.0005 for x in close],
+        "low": [x - 0.0005 for x in close],
+        "close": close,
+        "volume": [1000.0] * n,
+    })
+
+
+def test_core_indicators_are_prefix_invariant():
+    from aron_trader.core import add_indicators
+    result = check_prefix_invariance(add_indicators, market_frame(), cutoff=120)
+    assert result["passed"] is True, result
+
+
+def test_smc_features_are_prefix_invariant():
+    from aron_trader.smc import add_smc_features
+    from aron_trader.smc import add_smc_features
+    result = check_prefix_invariance(add_smc_features, market_frame(), cutoff=120)
+    assert result["passed"] is True, result
+
+
+def test_mtf_features_are_prefix_invariant():
+    from aron_trader.mtf_strategy import add_mtf_features
+    result = check_prefix_invariance(add_mtf_features, market_frame(240), cutoff=180)
+    assert result["passed"] is True, result
