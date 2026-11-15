@@ -100,6 +100,7 @@ jobs:
           name: ${{ format('walk-forward-{0}-{1}-{2}', inputs.strategy || 'atr_breakout', inputs.symbol || 'eurusd', inputs.timeframe || 'm15') }}
           path: |
             walk-forward-*.json
+            entry-hour-holdout-*.json
             download/*.csv
           if-no-files-found: error
           retention-days: 30
