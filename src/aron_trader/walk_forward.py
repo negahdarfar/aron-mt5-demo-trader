@@ -90,6 +90,7 @@ def run_walk_forward(
     base_slippage: float = 0.00005,
     cost_multipliers: Sequence[float] = (0.0, 1.0, 2.0, 3.0),
     fold_months: int = 1,
+    allowed_entry_hours_utc: set[int] | None = None,
 ) -> dict:
     """Evaluate unchanged rules in sequential monthly test folds.
 
@@ -128,6 +129,7 @@ def run_walk_forward(
                 strategy=strategy,
                 trade_start=fold_start.isoformat(),
                 trade_end=fold_end.isoformat(),
+                allowed_entry_hours_utc=allowed_entry_hours_utc,
             )
             trade_log = result.pop("trade_log", [])
             diagnostics = _trade_diagnostics(trade_log)
@@ -177,6 +179,7 @@ def run_walk_forward(
         "fold_count": len(folds),
         "starting_balance_per_fold": starting_balance,
         "risk_fraction": risk_fraction,
+        "allowed_entry_hours_utc": sorted(allowed_entry_hours_utc) if allowed_entry_hours_utc is not None else None,
         "method": "fixed rules; sequential monthly out-of-sample folds; each fold independently starts at starting_balance; data truncated at each fold end",
         "cost_note": "Cost multipliers are sensitivity assumptions, not verified broker quotes. P/L units depend on the placeholder or configured value_per_price_unit_per_lot.",
         "scenarios": scenarios,
