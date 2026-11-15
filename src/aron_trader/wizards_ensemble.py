@@ -58,6 +58,8 @@ def add_wizards_features(frame: pd.DataFrame) -> pd.DataFrame:
         p = data.iloc[i-1]
         if pd.isna(p["adx"]) or pd.isna(p["atr"]) or pd.isna(p["rsi"]):
             continue
+        if any(pd.isna(p[k]) for k in ("d1_bias", "h4_bias", "h1_bias")):
+            continue
         adx = float(p["adx"])
         direction = int(p["h1_bias"])
         htf_biases = (int(p["d1_bias"]), int(p["h4_bias"]), direction)
