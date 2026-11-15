@@ -55,14 +55,17 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
         raise ValueError("value_per_price_unit_per_lot must be positive")
     if not 0 < max_daily_loss <= 0.10 or not 0 < max_drawdown_limit <= 0.50:
         raise ValueError("Invalid daily loss or drawdown limit")
-    if strategy not in {"ema_rsi", "smc", "pro"}:
-        raise ValueError("strategy must be 'ema_rsi', 'smc' or 'pro'")
+    if strategy not in {"ema_rsi", "smc", "pro", "mtf"}:
+        raise ValueError("strategy must be 'ema_rsi', 'smc', 'pro' or 'mtf'")
 
     data = add_indicators(validate_ohlcv(frame))
     if strategy == "smc":
         data = add_smc_features(data)
     elif strategy == "pro":
         data = add_opportunity_features(data)
+    elif strategy == "mtf":
+        from .mtf_strategy import add_mtf_features
+        data = add_mtf_features(data)
 
     # Indicators are calculated on all available history (warm-up), but only
     # candles inside [trade_start, trade_end) are eligible for positions.
@@ -159,6 +162,7 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
         if position is None and not trading_halted_daily and not trading_halted_drawdown:
             signal = (str(prev["smc_signal"]) if strategy == "smc"
                       else str(prev["pro_signal"]) if strategy == "pro"
+                      else str(prev["mtf_signal"]) if strategy == "mtf"
                       else generate_signal(prev))
             atr = prev.get("atr")
             if signal in ("BUY", "SELL") and pd.notna(atr) and atr > 0 and equity > 0:
