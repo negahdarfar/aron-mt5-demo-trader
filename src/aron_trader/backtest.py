@@ -3,22 +3,28 @@ from __future__ import annotations
 
 import pandas as pd
 from .core import add_indicators, generate_signal, validate_ohlcv
+from .smc import add_smc_features
 
 
 def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
                  risk_fraction: float = 0.005, spread: float = 0.0,
-                 slippage: float = 0.0, reward_risk: float = 2.0) -> dict:
+                 slippage: float = 0.0, reward_risk: float = 2.0,
+                 strategy: str = "ema_rsi") -> dict:
     if starting_balance <= 0 or not 0 < risk_fraction <= 0.02:
         raise ValueError("Invalid balance or risk fraction")
     if spread < 0 or slippage < 0 or reward_risk < 1:
         raise ValueError("Invalid trading costs or reward/risk")
+    if strategy not in {"ema_rsi", "smc"}:
+        raise ValueError("strategy must be 'ema_rsi' or 'smc'")
     data = add_indicators(validate_ohlcv(frame))
+    if strategy == "smc":
+        data = add_smc_features(data)
     balance = float(starting_balance)
     equity_peak = balance
     max_drawdown = 0.0
     trades = []
     position = None
-    # Signals are evaluated at candle close; entries occur on the next candle open.
+    # Signals are evaluated at candle close; entries occur at the next candle open.
     for i in range(1, len(data)):
         bar = data.iloc[i]
         prev = data.iloc[i - 1]
@@ -43,7 +49,8 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
                                "entry": position["entry"], "exit": exit_price})
                 position = None
         if position is None:
-            signal = generate_signal(prev)
+            signal = (str(prev["smc_signal"]) if strategy == "smc"
+                      else generate_signal(prev))
             atr = prev.get("atr")
             if signal in ("BUY", "SELL") and pd.notna(atr) and atr > 0:
                 entry = float(bar["open"])
@@ -59,6 +66,7 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
         if equity_peak > 0:
             max_drawdown = max(max_drawdown, (equity_peak - balance) / equity_peak)
     return {
+        "strategy": strategy,
         "starting_balance": starting_balance,
         "ending_balance": balance,
         "net_profit": balance - starting_balance,
@@ -68,5 +76,5 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
         "max_drawdown": max_drawdown,
         "trade_log": trades,
         "open_position_at_end": position is not None,
-        "note": "Simplified research simulation; no funding, swap, margin, partial fills, or broker contract rules.",
+        "note": "Simplified research simulation; no funding, swap, margin, partial fills, or broker contract rules. An open final position is not marked to market.",
     }
