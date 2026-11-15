@@ -173,3 +173,30 @@ def test_professional_engine_does_not_signal_before_indicators_warm_up():
     from aron_trader.opportunity_engine import add_opportunity_features
     features = add_opportunity_features(sample_data(80))
     assert (features.loc[:48, "pro_signal"] == "HOLD").all()
+
+
+def test_validation_rejects_duplicate_timestamps():
+    data = sample_data(5)
+    data.loc[4, "timestamp"] = data.loc[3, "timestamp"]
+    with pytest.raises(ValueError, match="Duplicate timestamps"):
+        validate_ohlcv(data)
+
+
+@pytest.mark.parametrize("column,value", [
+    ("close", float("nan")),
+    ("open", float("inf")),
+    ("volume", -1),
+    ("close", 0),
+])
+def test_validation_rejects_non_finite_or_invalid_market_values(column, value):
+    data = sample_data(5)
+    data.loc[2, column] = value
+    with pytest.raises(ValueError):
+        validate_ohlcv(data)
+
+
+def test_validation_sorts_unique_timestamps_chronologically():
+    data = sample_data(5).iloc[[2, 0, 1, 4, 3]]
+    result = validate_ohlcv(data)
+    assert result["timestamp"].is_monotonic_increasing
+    assert not result["timestamp"].duplicated().any()
