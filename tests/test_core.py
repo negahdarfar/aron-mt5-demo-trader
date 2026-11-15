@@ -156,3 +156,20 @@ def test_backtest_limits_positions_to_requested_month_window(monkeypatch):
     for trade in result["trade_log"]:
         assert pd.Timestamp("2025-01-02", tz="UTC") <= trade["entry_time"]
         assert trade["entry_time"] < pd.Timestamp("2025-01-03", tz="UTC")
+
+
+def test_professional_opportunity_engine_is_causal_and_backtestable():
+    from aron_trader.opportunity_engine import add_opportunity_features
+    data = sample_data(220)
+    features = add_opportunity_features(data)
+    assert {"adx", "regime", "pro_signal", "pro_setup", "pro_score"}.issubset(features.columns)
+    assert set(features["pro_signal"].unique()).issubset({"BUY", "SELL", "HOLD"})
+    result = run_backtest(data, strategy="pro")
+    assert result["strategy"] == "pro"
+    assert result["starting_balance"] == 1000
+
+
+def test_professional_engine_does_not_signal_before_indicators_warm_up():
+    from aron_trader.opportunity_engine import add_opportunity_features
+    features = add_opportunity_features(sample_data(80))
+    assert (features.loc[:48, "pro_signal"] == "HOLD").all()
