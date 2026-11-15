@@ -29,7 +29,7 @@ def _with_adx(frame: pd.DataFrame) -> pd.DataFrame:
 
 def _resample_closed(base: pd.DataFrame, rule: str) -> pd.DataFrame:
     indexed = base.set_index("timestamp")
-    bars = indexed.resample(rule, label="right", closed="right").agg({
+    bars = indexed.resample(rule, label="right", closed="left").agg({
         "open": "first", "high": "max", "low": "min",
         "close": "last", "volume": "sum",
     }).dropna(subset=["open", "high", "low", "close"])
