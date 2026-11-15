@@ -166,6 +166,7 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
             signal = (str(prev["smc_signal"]) if strategy == "smc"
                       else str(prev["pro_signal"]) if strategy == "pro"
                       else str(prev["mtf_signal"]) if strategy == "mtf"
+                      else str(prev["wizards_signal"]) if strategy == "wizards"
                       else generate_signal(prev))
             atr = prev.get("atr")
             if signal in ("BUY", "SELL") and pd.notna(atr) and atr > 0 and equity > 0:
