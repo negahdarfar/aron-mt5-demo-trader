@@ -47,6 +47,7 @@ on:
           - mtf
           - wizards
           - donchian
+          - ema_trend
 
 permissions:
   contents: read
@@ -96,7 +97,7 @@ jobs:
       - name: Run selected strategy backtest
         env:
           SYMBOL: ${{ github.event_name == 'workflow_dispatch' && inputs.symbol || 'eurusd' }}
-          STRATEGY: ${{ github.event_name == 'workflow_dispatch' && inputs.strategy || 'donchian' }}
+          STRATEGY: ${{ github.event_name == 'workflow_dispatch' && inputs.strategy || 'ema_trend' }}
         run: |
           set -euo pipefail
           CSV="$(find download -maxdepth 1 -type f -name '*.csv' | head -n 1)"
