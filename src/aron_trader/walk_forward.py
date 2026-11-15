@@ -11,7 +11,7 @@ def _trade_diagnostics(trades: list[dict]) -> dict:
     """Compact closed-trade diagnostics retained without storing every trade."""
     if not trades:
         return {
-            "closed_trades": 0, "exit_reasons": {}, "side_breakdown": {},
+            "closed_trades": 0, "exit_reasons": {}, "side_breakdown": {}, "entry_hour_utc": {},
             "average_win": 0.0, "average_loss": 0.0, "largest_win": 0.0,
             "largest_loss": 0.0, "max_consecutive_losses": 0,
         }
