@@ -1,3 +1,4 @@
+# Re-runs both symbols when the cost-normalized comparison script changes.
 name: ATR MTF Multi-Symbol Validation
 
 on:
