@@ -58,7 +58,6 @@ def test_core_indicators_are_prefix_invariant():
 
 def test_smc_features_are_prefix_invariant():
     from aron_trader.smc import add_smc_features
-    from aron_trader.smc import add_smc_features
     result = check_prefix_invariance(add_smc_features, market_frame(), cutoff=120)
     assert result["passed"] is True, result
 
