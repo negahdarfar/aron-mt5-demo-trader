@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import math
+import numpy as np
 import pandas as pd
 
 REQUIRED_COLUMNS = {"timestamp", "open", "high", "low", "close", "volume"}
@@ -16,11 +17,21 @@ def validate_ohlcv(frame: pd.DataFrame) -> pd.DataFrame:
         data[col] = pd.to_numeric(data[col], errors="raise")
     if data.empty:
         raise ValueError("OHLCV data is empty")
+    if not np.isfinite(data[["open", "high", "low", "close", "volume"]].to_numpy(dtype=float)).all():
+        raise ValueError("OHLCV values must all be finite; NaN and infinity are not allowed")
+    if (data[["open", "high", "low", "close"]] <= 0).any().any():
+        raise ValueError("OHLC prices must be positive")
+    if (data["volume"] < 0).any():
+        raise ValueError("Volume cannot be negative")
     if (data["high"] < data[["open", "close", "low"]].max(axis=1)).any():
         raise ValueError("High must be >= open, close, and low")
     if (data["low"] > data[["open", "close", "high"]].min(axis=1)).any():
         raise ValueError("Low must be <= open, close, and high")
     data["timestamp"] = pd.to_datetime(data["timestamp"], utc=True, errors="raise")
+    if data["timestamp"].isna().any():
+        raise ValueError("Timestamps cannot be missing")
+    if data["timestamp"].duplicated().any():
+        raise ValueError("Duplicate timestamps are not allowed")
     data = data.sort_values("timestamp").reset_index(drop=True)
     return data
 
