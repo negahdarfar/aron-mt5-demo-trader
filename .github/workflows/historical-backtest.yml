@@ -98,7 +98,7 @@ jobs:
       - name: Run selected strategy backtest
         env:
           SYMBOL: ${{ github.event_name == 'workflow_dispatch' && inputs.symbol || 'eurusd' }}
-          STRATEGY: ${{ github.event_name == 'workflow_dispatch' && inputs.strategy || 'ema_trend' }}
+          STRATEGY: ${{ github.event_name == 'workflow_dispatch' && inputs.strategy || 'momentum' }}
         run: |
           set -euo pipefail
           CSV="$(find download -maxdepth 1 -type f -name '*.csv' | head -n 1)"
@@ -109,7 +109,7 @@ jobs:
       - name: Upload selected strategy results
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ format('backtest-{0}-{1}-{2}', inputs.strategy || 'ema_trend', inputs.symbol || 'eurusd', inputs.timeframe || 'm15') }}
+          name: ${{ format('backtest-{0}-{1}-{2}', inputs.strategy || 'momentum', inputs.symbol || 'eurusd', inputs.timeframe || 'm15') }}
           path: |
             download/*.csv
             backtest-*.json
