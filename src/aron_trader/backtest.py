@@ -63,6 +63,7 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
     daily_start_equity = balance
     active_day = None
     trading_halted_daily = False
+    daily_loss_limit_ever_hit = False
     trading_halted_drawdown = False
     round_trip_cost = float(spread + slippage)
 
@@ -103,6 +104,7 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
             max_drawdown = max(max_drawdown, (equity_peak - equity) / equity_peak)
         if daily_start_equity > 0 and (daily_start_equity - equity) / daily_start_equity >= max_daily_loss:
             trading_halted_daily = True
+            daily_loss_limit_ever_hit = True
         if max_drawdown >= max_drawdown_limit:
             trading_halted_drawdown = True
 
@@ -144,7 +146,7 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
         "wins": wins,
         "win_rate": wins / len(trades) if trades else 0.0,
         "max_drawdown": max_drawdown,
-        "daily_loss_limit_hit": trading_halted_daily,
+        "daily_loss_limit_hit": daily_loss_limit_ever_hit,
         "max_drawdown_limit_hit": trading_halted_drawdown,
         "trade_log": trades,
         "open_position_at_end": position is not None,
