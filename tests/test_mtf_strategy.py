@@ -23,9 +23,9 @@ def test_resample_uses_only_completed_source_bars():
     data = trending_m15(days=2)
     hourly = _resample_closed(data, "1h")
     first = hourly.iloc[0]
-    # The right-closed 01:00 bucket contains only the 00:00 source candle.
-    assert first["timestamp"] == pd.Timestamp("2026-07-01 00:00:00+00:00")
-    assert first["close"] == pytest.approx(data.iloc[0]["close"])
+    # The 01:00 H1 bar aggregates the four quarter-hour bars from 00:00-00:45.
+    assert first["timestamp"] == pd.Timestamp("2026-07-01 01:00:00+00:00")
+    assert first["close"] == pytest.approx(data.iloc[3]["close"])
 
 
 def test_mtf_strategy_has_safe_hold_when_history_is_short():
