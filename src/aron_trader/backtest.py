@@ -55,7 +55,7 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
         raise ValueError("value_per_price_unit_per_lot must be positive")
     if not 0 < max_daily_loss <= 0.10 or not 0 < max_drawdown_limit <= 0.50:
         raise ValueError("Invalid daily loss or drawdown limit")
-    if strategy not in {"ema_rsi", "smc", "pro", "mtf", "wizards", "donchian", "ema_trend", "momentum", "atr_breakout", "trend_pullback"}:
+    if strategy not in {"ema_rsi", "smc", "pro", "mtf", "wizards", "donchian", "ema_trend", "momentum", "atr_breakout", "trend_pullback", "bos_retest"}:
         raise ValueError("Unsupported strategy")
 
     data = add_indicators(validate_ohlcv(frame))
@@ -84,6 +84,9 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
     elif strategy == "trend_pullback":
         from .trend_pullback import add_trend_pullback_features
         data = add_trend_pullback_features(data)
+    elif strategy == "bos_retest":
+        from .bos_retest import add_bos_retest_features
+        data = add_bos_retest_features(data)
 
     # Indicators are calculated on all available history (warm-up), but only
     # candles inside [trade_start, trade_end) are eligible for positions.
@@ -187,6 +190,7 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
                       else str(prev["momentum_signal"]) if strategy == "momentum"
                       else str(prev["atr_breakout_signal"]) if strategy == "atr_breakout"
                       else str(prev["trend_pullback_signal"]) if strategy == "trend_pullback"
+                      else str(prev["bos_retest_signal"]) if strategy == "bos_retest"
                       else generate_signal(prev))
             atr = prev.get("atr")
             if signal in ("BUY", "SELL") and pd.notna(atr) and atr > 0 and equity > 0:
