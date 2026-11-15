@@ -40,3 +40,31 @@ def test_walk_forward_returns_independent_monthly_folds_and_cost_scenarios():
     assert report["scenarios"][3]["spread"] == pytest.approx(0.0003)
     assert report["scenarios"][3]["slippage"] == pytest.approx(0.00015)
     assert all("fold_start" in fold for fold in report["scenarios"][0]["folds"])
+
+
+def test_trade_diagnostics_break_down_exit_reasons_and_directions():
+    from aron_trader.walk_forward import _trade_diagnostics
+
+    report = _trade_diagnostics([
+        {"side": "BUY", "pnl": 12.0, "exit_reason": "target"},
+        {"side": "SELL", "pnl": -7.0, "exit_reason": "stop"},
+        {"side": "BUY", "pnl": -3.0, "exit_reason": "max_drawdown_halt"},
+        {"side": "SELL", "pnl": 5.0, "exit_reason": "target"},
+    ])
+    assert report["closed_trades"] == 4
+    assert report["exit_reasons"]["target"]["count"] == 2
+    assert report["exit_reasons"]["max_drawdown_halt"]["net_pnl"] == -3.0
+    assert report["side_breakdown"]["BUY"]["count"] == 2
+    assert report["average_win"] == pytest.approx(8.5)
+    assert report["average_loss"] == pytest.approx(-5.0)
+    assert report["largest_loss"] == -7.0
+    assert report["max_consecutive_losses"] == 2
+
+
+def test_trade_diagnostics_handles_empty_trade_log():
+    from aron_trader.walk_forward import _trade_diagnostics
+
+    report = _trade_diagnostics([])
+    assert report["closed_trades"] == 0
+    assert report["exit_reasons"] == {}
+    assert report["max_consecutive_losses"] == 0
