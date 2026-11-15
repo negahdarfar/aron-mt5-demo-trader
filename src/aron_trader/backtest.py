@@ -110,6 +110,25 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
         if max_drawdown >= max_drawdown_limit:
             trading_halted_drawdown = True
 
+        # A breached risk limit liquidates an open position at the current
+        # candle close (plus modeled round-trip costs) and blocks new entries.
+        # This is a bar-close approximation, not a broker-side stop guarantee.
+        if position is not None and (trading_halted_daily or trading_halted_drawdown):
+            direction = 1 if position["side"] == "BUY" else -1
+            exit_price = float(bar["close"])
+            pnl = direction * (exit_price - position["entry"]) * position["units"]
+            pnl -= round_trip_cost * position["units"]
+            balance += pnl
+            trades.append({
+                "side": position["side"], "pnl": pnl,
+                "entry": position["entry"], "exit": exit_price,
+                "exit_reason": ("max_drawdown_halt" if trading_halted_drawdown
+                                else "daily_loss_halt"),
+                "units": position["units"],
+            })
+            position = None
+            last_equity = balance
+
         if position is None and not trading_halted_daily and not trading_halted_drawdown:
             signal = (str(prev["smc_signal"]) if strategy == "smc"
                       else generate_signal(prev))
