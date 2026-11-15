@@ -40,7 +40,8 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
                  max_drawdown_limit: float = 0.06,
                  value_per_price_unit_per_lot: float = 1.0,
                  trade_start: str | None = None,
-                 trade_end: str | None = None) -> dict:
+                 trade_end: str | None = None,
+                 allowed_entry_hours_utc: set[int] | None = None) -> dict:
     """Run a price-unit research simulation; costs are total round-trip price units.
 
     The instrument's contract size, account-currency conversion, margin, swap,
@@ -55,6 +56,8 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
         raise ValueError("value_per_price_unit_per_lot must be positive")
     if not 0 < max_daily_loss <= 0.10 or not 0 < max_drawdown_limit <= 0.50:
         raise ValueError("Invalid daily loss or drawdown limit")
+    if allowed_entry_hours_utc is not None and (not allowed_entry_hours_utc or any(h < 0 or h > 23 for h in allowed_entry_hours_utc)):
+        raise ValueError("allowed_entry_hours_utc must contain hours from 0 to 23")
     if strategy not in {"ema_rsi", "smc", "pro", "mtf", "wizards", "donchian", "ema_trend", "momentum", "atr_breakout", "trend_pullback", "bos_retest"}:
         raise ValueError("Unsupported strategy")
 
@@ -193,7 +196,9 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
                       else str(prev["bos_retest_signal"]) if strategy == "bos_retest"
                       else generate_signal(prev))
             atr = prev.get("atr")
-            if signal in ("BUY", "SELL") and pd.notna(atr) and atr > 0 and equity > 0:
+            hour_allowed = (allowed_entry_hours_utc is None
+                            or pd.Timestamp(bar["timestamp"]).hour in allowed_entry_hours_utc)
+            if hour_allowed and signal in ("BUY", "SELL") and pd.notna(atr) and atr > 0 and equity > 0:
                 entry = float(bar["open"])
                 stop_distance = float(atr)
                 risk_cash = equity * risk_fraction
