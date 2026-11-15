@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 from aron_trader.core import add_indicators, position_size, validate_ohlcv
-from aron_trader.backtest import run_backtest
+from aron_trader.backtest import run_backtest, _bar_exit
 
 
 def sample_data(n=140):
@@ -70,3 +70,27 @@ def test_backtest_accepts_smc_strategy():
 def test_backtest_rejects_unknown_strategy():
     with pytest.raises(ValueError):
         run_backtest(sample_data(), strategy="unknown")
+
+
+
+def test_backtest_stop_gap_fills_at_worse_open():
+    position = {"side": "BUY", "stop": 1.095, "target": 1.115}
+    bar = pd.Series({"open": 1.090, "high": 1.100, "low": 1.085, "close": 1.095})
+    price, reason = _bar_exit(position, bar)
+    assert price == pytest.approx(1.090)
+    assert reason == "stop_gap"
+
+
+def test_backtest_target_gap_fills_at_open():
+    position = {"side": "SELL", "stop": 1.105, "target": 1.085}
+    bar = pd.Series({"open": 1.080, "high": 1.090, "low": 1.075, "close": 1.082})
+    price, reason = _bar_exit(position, bar)
+    assert price == pytest.approx(1.080)
+    assert reason == "target_gap"
+
+
+def test_backtest_rejects_invalid_guardrails():
+    with pytest.raises(ValueError):
+        run_backtest(sample_data(), max_daily_loss=0)
+    with pytest.raises(ValueError):
+        run_backtest(sample_data(), max_drawdown_limit=0.8)
