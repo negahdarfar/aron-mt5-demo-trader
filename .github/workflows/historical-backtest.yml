@@ -101,7 +101,7 @@ jobs:
       - name: Run selected strategy backtest
         env:
           SYMBOL: ${{ github.event_name == 'workflow_dispatch' && inputs.symbol || 'eurusd' }}
-          STRATEGY: ${{ github.event_name == 'workflow_dispatch' && inputs.strategy || 'trend_pullback' }}
+          STRATEGY: ${{ github.event_name == 'workflow_dispatch' && inputs.strategy || 'bos_retest' }}
         run: |
           set -euo pipefail
           CSV="$(find download -maxdepth 1 -type f -name '*.csv' | head -n 1)"
