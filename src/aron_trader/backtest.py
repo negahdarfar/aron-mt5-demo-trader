@@ -55,8 +55,8 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
         raise ValueError("value_per_price_unit_per_lot must be positive")
     if not 0 < max_daily_loss <= 0.10 or not 0 < max_drawdown_limit <= 0.50:
         raise ValueError("Invalid daily loss or drawdown limit")
-    if strategy not in {"ema_rsi", "smc", "pro", "mtf"}:
-        raise ValueError("strategy must be 'ema_rsi', 'smc', 'pro' or 'mtf'")
+    if strategy not in {"ema_rsi", "smc", "pro", "mtf", "wizards"}:
+        raise ValueError("strategy must be 'ema_rsi', 'smc', 'pro', 'mtf' or 'wizards'")
 
     data = add_indicators(validate_ohlcv(frame))
     if strategy == "smc":
@@ -66,6 +66,9 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
     elif strategy == "mtf":
         from .mtf_strategy import add_mtf_features
         data = add_mtf_features(data)
+    elif strategy == "wizards":
+        from .wizards_ensemble import add_wizards_features
+        data = add_wizards_features(data)
 
     # Indicators are calculated on all available history (warm-up), but only
     # candles inside [trade_start, trade_end) are eligible for positions.
