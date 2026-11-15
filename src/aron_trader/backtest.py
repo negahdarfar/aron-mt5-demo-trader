@@ -106,6 +106,7 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
                 trades.append({
                     "side": position["side"], "pnl": pnl,
                     "entry": position["entry"], "exit": exit_price,
+                    "entry_time": position["entry_time"],
                     "exit_reason": exit_reason, "lots": position["lots"],
                 })
                 position = None
@@ -142,6 +143,7 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
             trades.append({
                 "side": position["side"], "pnl": pnl,
                 "entry": position["entry"], "exit": exit_price,
+                "entry_time": position["entry_time"],
                 "exit_reason": ("max_drawdown_halt" if trading_halted_drawdown
                                 else "daily_loss_halt"),
                 "lots": position["lots"],
@@ -162,7 +164,8 @@ def run_backtest(frame: pd.DataFrame, starting_balance: float = 1000.0,
                 stop = entry - direction * stop_distance
                 target = entry + direction * stop_distance * reward_risk
                 position = {"side": signal, "entry": entry, "stop": stop,
-                            "target": target, "lots": lots}
+                            "target": target, "lots": lots,
+                            "entry_time": bar["timestamp"]}
 
     final_close = float(data.iloc[end_idx - 1]["close"])
     unrealized_pnl = 0.0
