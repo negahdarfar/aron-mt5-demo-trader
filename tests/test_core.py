@@ -111,3 +111,26 @@ def test_load_ohlcv_csv_converts_unix_milliseconds(tmp_path):
     }).to_csv(path, index=False)
     loaded = load_ohlcv_csv(str(path))
     assert str(loaded.loc[0, "timestamp"]) == "2025-01-01 00:00:00+00:00"
+
+
+def test_backtest_liquidates_open_position_when_daily_limit_breached(monkeypatch):
+    import aron_trader.backtest as backtest_module
+
+    data = sample_data(140)
+    # A sharp adverse close breaches the 2% daily equity-loss threshold.
+    data.loc[100, ["open", "high", "low", "close"]] = [
+        1.10, 1.101, 1.079, 1.080
+    ]
+    monkeypatch.setattr(backtest_module, "generate_signal", lambda row: "BUY")
+    # Isolate the risk-kill-switch behavior from ordinary stop execution.
+    monkeypatch.setattr(backtest_module, "_bar_exit", lambda position, bar: (None, None))
+
+    result = backtest_module.run_backtest(
+        data, strategy="ema_rsi", max_daily_loss=0.02,
+        max_drawdown_limit=0.50
+    )
+    halted = [trade for trade in result["trade_log"]
+              if trade["exit_reason"] == "daily_loss_halt"]
+    assert halted
+    assert result["daily_loss_limit_hit"] is True
+    assert result["open_position_at_end"] is False
