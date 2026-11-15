@@ -20,7 +20,7 @@ def main() -> None:
     parser.add_argument("--csv", required=True, help="Path to OHLCV CSV file")
     parser.add_argument("--symbol", default="UNKNOWN")
     parser.add_argument("--balance", type=float, default=1000.0)
-    parser.add_argument("--strategy", choices=("ema_rsi", "smc", "pro", "mtf", "wizards", "donchian", "ema_trend", "momentum", "atr_breakout"), default="ema_rsi")
+    parser.add_argument("--strategy", choices=("ema_rsi", "smc", "pro", "mtf", "wizards", "donchian", "ema_trend", "momentum", "atr_breakout", "trend_pullback"), default="ema_rsi")
     parser.add_argument("--spread", type=float, default=0.0,
                         help="Simplified total round-trip cost in price units")
     parser.add_argument("--slippage", type=float, default=0.0,
