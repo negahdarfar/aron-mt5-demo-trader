@@ -98,3 +98,16 @@ def test_backtest_rejects_invalid_guardrails():
         run_backtest(sample_data(), max_daily_loss=0)
     with pytest.raises(ValueError):
         run_backtest(sample_data(), max_drawdown_limit=0.8)
+
+
+def test_load_ohlcv_csv_converts_unix_milliseconds(tmp_path):
+    from aron_trader.cli import load_ohlcv_csv
+    path = tmp_path / "dukascopy.csv"
+    pd.DataFrame({
+        "timestamp": [1735689600000, 1735690500000],
+        "open": [1.1, 1.2], "high": [1.11, 1.21],
+        "low": [1.09, 1.19], "close": [1.1, 1.2],
+        "volume": [100, 120],
+    }).to_csv(path, index=False)
+    loaded = load_ohlcv_csv(str(path))
+    assert str(loaded.loc[0, "timestamp"]) == "2025-01-01 00:00:00+00:00"
