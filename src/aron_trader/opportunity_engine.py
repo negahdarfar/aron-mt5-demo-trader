@@ -45,7 +45,7 @@ def add_opportunity_features(frame: pd.DataFrame) -> pd.DataFrame:
 
     # Signals are evaluated on each completed candle. The backtester consumes
     # row i-1 and enters at row i open, so no current-bar look-ahead is used.
-    for i in range(2, len(data)):
+    for i in range(3, len(data)):
         r = data.iloc[i]
         p = data.iloc[i - 1]
         if not _finite(p, "ema_fast", "ema_slow", "rsi", "atr", "adx"):
