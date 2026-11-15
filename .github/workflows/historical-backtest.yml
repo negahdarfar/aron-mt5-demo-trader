@@ -64,10 +64,11 @@ jobs:
           pip install -e .
       - name: Download historical candles
         env:
-          SYMBOL: ${{ inputs.symbol }}
-          TIMEFRAME: ${{ inputs.timeframe }}
-          START_DATE: ${{ inputs.start_date }}
-          END_DATE: ${{ inputs.end_date }}
+          SYMBOL: ${{ github.event_name == 'workflow_dispatch' && inputs.symbol || 'eurusd' }}
+          TIMEFRAME: ${{ github.event_name == 'workflow_dispatch' && inputs.timeframe || 'm15' }}
+          START_DATE: ${{ github.event_name == 'workflow_dispatch' && inputs.start_date || '2024-01-01' }}
+          END_DATE: ${{ github.event_name == 'workflow_dispatch' && inputs.end_date || '2025-01-01' }}
+          STRATEGY: ${{ github.event_name == 'workflow_dispatch' && inputs.strategy || 'ema_rsi' }}
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -80,15 +81,13 @@ jobs:
           if (end - start).days > 730:
               raise SystemExit("Limit each run to 730 days; use smaller date ranges")
           PY
-          npx --yes dukascopy-node@latest -i "$SYMBOL" -from "$START_DATE" -to "$END_DATE" -t "$TIMEFRAME" -f csv -v
+          npx --yes dukascopy-node@latest -i "$SYMBOL" -from "$START_DATE" -to "$END_DATE" -t "$TIMEFRAME" -f csv -v --retries 3 --cache
           test -d download
           find download -maxdepth 1 -type f -name '*.csv' -print
       - name: Run offline backtest
         env:
-          SYMBOL: ${{ inputs.symbol }}
-          STRATEGY: ${{ inputs.strategy }}
-          START_DATE: ${{ inputs.start_date }}
-          END_DATE: ${{ inputs.end_date }}
+          SYMBOL: ${{ github.event_name == 'workflow_dispatch' && inputs.symbol || 'eurusd' }}
+          STRATEGY: ${{ github.event_name == 'workflow_dispatch' && inputs.strategy || 'ema_rsi' }}
         run: |
           set -euo pipefail
           CSV="$(find download -maxdepth 1 -type f -name '*.csv' | head -n 1)"
